@@ -6,13 +6,26 @@
     <title>EBMPrivatyScan</title>
     <!-- Tailwind CSS para un diseño limpio y profesional -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
 
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 py-4 px-6 shadow-sm">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2" aria-label="EBMPrivatyScan">
                 🛡️ EBMPrivatyScan
             </h1>
             <nav class="flex gap-4">
@@ -33,16 +46,21 @@
             <!-- Formulario de Búsqueda -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-3xl mx-auto">
                 <div class="flex flex-col sm:flex-row gap-3">
+                    <label for="urlInput" class="sr-only">URL del sitio web a evaluar</label>
                     <input
                         type="url"
                         id="urlInput"
+                        name="url"
                         placeholder="https://tudominio.cl"
                         required
+                        aria-label="URL del sitio web a evaluar"
                         class="flex-grow px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
                     >
                     <button
+                        type="button"
                         onclick="runAudit()"
                         id="btnAudit"
+                        aria-label="Analizar sitio"
                         class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition duration-200 shadow-sm flex items-center justify-center"
                     >
                         Analizar Sitio
@@ -213,8 +231,8 @@
 
                     const card = document.createElement('div');
                     card.className = "p-4 rounded-xl border border-slate-100 bg-slate-50 flex flex-col gap-1";
-                    const heading = document.createElement('div');
-                    heading.className = "flex justify-between items-center";
+                    const heading = document.createElement('h4');
+                    heading.className = "flex justify-between items-center text-base font-semibold text-slate-700";
 
                     const category = document.createElement('span');
                     category.className = "font-bold text-slate-700";

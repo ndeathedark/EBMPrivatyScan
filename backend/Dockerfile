@@ -23,15 +23,15 @@ RUN apt-get update && apt-get install -y \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar las dependencias de Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiar solo las dependencias para instalar paquetes lockeados y seguros
+COPY requirements.txt ./
+RUN python -m pip install --no-cache-dir --only-binary=:all: -r requirements.txt
+
+# Copiar el código de la aplicación sin incluir artefactos o secretos del entorno
+COPY app ./app
 
 # Instalar los binarios de Playwright para Chromium
 RUN playwright install chromium
-
-# Copiar el resto del código del backend
-COPY . .
 
 # Exponer el puerto de FastAPI
 EXPOSE 8000
