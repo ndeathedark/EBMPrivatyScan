@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: .
+    container_name: ebmprivatyscan_backend
+    working_dir: /workspace/backend
+    environment:
+      DATABASE_URL: sqlite:////workspace/sql_app.db
+    volumes:
+      - ..:/workspace
+    restart: always
+
+  frontend:
+    image: nginx:alpine
+    container_name: ebmprivatyscan_frontend
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ../frontend:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    restart: always

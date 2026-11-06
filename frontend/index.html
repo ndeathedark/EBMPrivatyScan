@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBMPrivatyScan</title>
+    <!-- Tailwind CSS para un diseño limpio y profesional -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 py-4 px-6 shadow-sm">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                🛡️ EBMPrivatyScan
+            </h1>
+            <nav class="flex gap-4">
+                <button onclick="switchTab('evaluator')" id="tabEvaluator" class="text-sm font-semibold text-blue-600 border-b-2 border-blue-600 pb-1">Evaluador</button>
+                <button onclick="switchTab('admin')" id="tabAdmin" class="text-sm font-medium text-slate-500 hover:text-slate-800 pb-1">Historial</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 py-10 flex-grow w-full">
+        <div id="sectionEvaluator" class="space-y-8">
+            <div class="text-center max-w-2xl mx-auto">
+                <h2 class="text-3xl font-extrabold text-slate-900 mb-2">Diagnóstico de Privacidad Web</h2>
+                <p class="text-slate-600">Ingresa la URL de tu sitio web para evaluar el cumplimiento de la Ley N° 21.719 de forma rápida y sencilla.</p>
+            </div>
+
+            <!-- Formulario de Búsqueda -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-3xl mx-auto">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input
+                        type="url"
+                        id="urlInput"
+                        placeholder="https://tudominio.cl"
+                        required
+                        class="flex-grow px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                    >
+                    <button
+                        onclick="runAudit()"
+                        id="btnAudit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition duration-200 shadow-sm flex items-center justify-center"
+                    >
+                        Analizar Sitio
+                    </button>
+                </div>
+            </div>
+
+            <!-- Indicador de Carga (Spinner) -->
+            <div id="loading" class="hidden text-center py-12">
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent mb-4"></div>
+                <p class="text-slate-600 font-medium">Inspeccionando certificados, cookies y superficie web...</p>
+                <p class="text-xs text-slate-400 mt-1">Esto puede tomar unos segundos mientras el motor analiza el DOM.</p>
+            </div>
+
+            <!-- Contenedor de Resultados -->
+            <div id="results" class="hidden space-y-6 max-w-3xl mx-auto">
+                <!-- Tarjeta de Resumen de Riesgo -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Sitio Evaluado</span>
+                        <h3 id="resUrl" class="text-lg font-bold text-slate-800 break-all"></h3>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Nivel de Riesgo</span>
+                        <div id="resRisk" class="text-2xl font-extrabold">0%</div>
+                    </div>
+                </div>
+
+                <!-- Lista de Hallazgos -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="text-md font-bold text-slate-900 mb-4">Detalle del Diagnóstico</h4>
+                    <div id="findingsList" class="space-y-4">
+                        <!-- Los hallazgos se inyectarán aquí mediante JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de administración / historial -->
+        <div id="sectionAdmin" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Historial de Auditorías</h2>
+                    <p class="text-sm text-slate-500">Registro de todas las evaluaciones realizadas en el sistema.</p>
+                </div>
+                <button onclick="loadHistory()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 rounded-xl transition">
+                    Actualizar Lista
+                </button>
+            </div>
+
+            <!-- Tabla de Historial -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            <th class="py-3 px-4">ID</th>
+                            <th class="py-3 px-4">Sitio Web</th>
+                            <th class="py-3 px-4">Riesgo</th>
+                            <th class="py-3 px-4">Fecha / Hora</th>
+                            <th class="py-3 px-4">Reporte</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                        <!-- Los datos se cargan dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-12">
+        Proyecto Integrado - Analista Programador INACAP / ADMI
+    </footer>
+
+    <!-- Script de Funcionalidad y Pestañas -->
+    <script>
+        function switchTab(tab) {
+            const secEval = document.getElementById('sectionEvaluator');
+            const secAdmin = document.getElementById('sectionAdmin');
+            const tabEval = document.getElementById('tabEvaluator');
+            const tabAdmin = document.getElementById('tabAdmin');
+
+            if (tab === 'evaluator') {
+                secEval.classList.remove('hidden');
+                secAdmin.classList.add('hidden');
+                tabEval.className = "text-sm font-semibold text-blue-600 border-b-2 border-blue-600 pb-1";
+                tabAdmin.className = "text-sm font-medium text-slate-500 hover:text-slate-800 pb-1";
+            } else {
+                secEval.classList.add('hidden');
+                secAdmin.classList.remove('hidden');
+                tabAdmin.className = "text-sm font-semibold text-blue-600 border-b-2 border-blue-600 pb-1";
+                tabEval.className = "text-sm font-medium text-slate-500 hover:text-slate-800 pb-1";
+                loadHistory();
+            }
+        }
+
+        async function runAudit() {
+            const urlInput = document.getElementById('urlInput').value;
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const btnAudit = document.getElementById('btnAudit');
+            const findingsList = document.getElementById('findingsList');
+            const resUrl = document.getElementById('resUrl');
+            const resRisk = document.getElementById('resRisk');
+
+            if (!urlInput) {
+                alert('Por favor ingresa una URL válida.');
+                return;
+            }
+
+            // Mostrar estado de carga
+            loading.classList.remove('hidden');
+            results.classList.add('hidden');
+            btnAudit.disabled = true;
+
+            try {
+                const response = await fetch('/api/v1/audit/quick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlInput })
+                });
+
+                if (!response.ok) {
+                    let message = `La solicitud falló (HTTP ${response.status}).`;
+                    try {
+                        const errorData = await response.json();
+                        if (typeof errorData.detail === 'string') {
+                            message = errorData.detail;
+                        } else if (Array.isArray(errorData.detail)) {
+                            message = errorData.detail
+                                .map(item => item.msg)
+                                .filter(Boolean)
+                                .join(' ');
+                        }
+                    } catch (error) {
+                        console.error('No se pudo leer el detalle del error de la API.', error);
+                    }
+                    throw new Error(message);
+                }
+
+                const data = await response.json();
+
+                resUrl.textContent = data.url;
+                resRisk.textContent = data.risk_percentage + '%';
+                
+                if (data.risk_percentage > 50) {
+                    resRisk.className = "text-2xl font-extrabold text-red-600";
+                } else if (data.risk_percentage > 20) {
+                    resRisk.className = "text-2xl font-extrabold text-amber-500";
+                } else {
+                    resRisk.className = "text-2xl font-extrabold text-emerald-600";
+                }
+
+                findingsList.innerHTML = '';
+                data.findings.forEach(item => {
+                    const badgeColor = item.status === 'PASS'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : (item.status === 'ALERTA' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700');
+
+                    const card = document.createElement('div');
+                    card.className = "p-4 rounded-xl border border-slate-100 bg-slate-50 flex flex-col gap-1";
+                    const heading = document.createElement('div');
+                    heading.className = "flex justify-between items-center";
+
+                    const category = document.createElement('span');
+                    category.className = "font-bold text-slate-700";
+                    category.textContent = item.category;
+
+                    const status = document.createElement('span');
+                    status.className = `text-xs font-bold px-2.5 py-1 rounded-full ${badgeColor}`;
+                    status.textContent = item.status;
+
+                    const explanation = document.createElement('p');
+                    explanation.className = "text-sm text-slate-600 mt-1";
+                    explanation.textContent = item.friendly_explanation;
+
+                    heading.append(category, status);
+                    card.append(heading, explanation);
+                    findingsList.appendChild(card);
+                });
+
+                results.querySelector('.pdf-download-container')?.remove();
+                const btnContainer = document.createElement('div');
+                btnContainer.className = "pdf-download-container mt-4 text-right";
+
+                const pdfLink = document.createElement('a');
+                pdfLink.href = `/api/v1/audit/${encodeURIComponent(data.id)}/pdf`;
+                pdfLink.target = "_blank";
+                pdfLink.rel = "noopener noreferrer";
+                pdfLink.className = "inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition shadow-sm";
+                pdfLink.textContent = "📄 Descargar Reporte PDF";
+
+                btnContainer.appendChild(pdfLink);
+                results.appendChild(btnContainer);
+                results.classList.remove('hidden');
+            } catch (error) {
+                const message = error instanceof TypeError
+                    ? 'No se pudo conectar con el servidor. Verifica que esté disponible e inténtalo nuevamente.'
+                    : error.message;
+                alert('No se pudo completar el análisis: ' + message);
+            } finally {
+                loading.classList.add('hidden');
+                btnAudit.disabled = false;
+            }
+        }
+
+        async function loadHistory() {
+            const tableBody = document.getElementById('historyTableBody');
+            tableBody.replaceChildren();
+
+            const loadingRow = document.createElement('tr');
+            const loadingCell = document.createElement('td');
+            loadingCell.colSpan = 5;
+            loadingCell.className = "text-center py-6 text-slate-400";
+            loadingCell.textContent = "Cargando registros...";
+            loadingRow.appendChild(loadingCell);
+            tableBody.appendChild(loadingRow);
+
+            try {
+                const response = await fetch('/api/v1/history');
+                if (!response.ok) throw new Error('No se pudo obtener el historial.');
+
+                const history = await response.json();
+
+                if (history.length === 0) {
+                    loadingCell.textContent = "No hay auditorías registradas todavía.";
+                    return;
+                }
+
+                tableBody.replaceChildren();
+                history.forEach(item => {
+                    const riskColor = item.risk_percentage > 50
+                        ? 'text-red-600 bg-red-50'
+                        : (item.risk_percentage > 20 ? 'text-amber-600 bg-amber-50' : 'text-emerald-600 bg-emerald-50');
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-50 transition";
+
+                    const idCell = document.createElement('td');
+                    idCell.className = "py-3 px-4 font-mono text-xs text-slate-500";
+                    idCell.textContent = `#${item.id}`;
+
+                    const urlCell = document.createElement('td');
+                    urlCell.className = "py-3 px-4 font-medium text-slate-800 break-all";
+                    urlCell.textContent = item.url;
+
+                    const riskCell = document.createElement('td');
+                    riskCell.className = "py-3 px-4";
+                    const riskBadge = document.createElement('span');
+                    riskBadge.className = `px-2.5 py-1 rounded-lg font-bold text-xs ${riskColor}`;
+                    riskBadge.textContent = `${item.risk_percentage}%`;
+                    riskCell.appendChild(riskBadge);
+
+                    const dateCell = document.createElement('td');
+                    dateCell.className = "py-3 px-4 text-xs text-slate-500";
+                    dateCell.textContent = new Date(item.created_at).toLocaleString();
+
+                    const reportCell = document.createElement('td');
+                    reportCell.className = "py-3 px-4";
+                    const reportLink = document.createElement('a');
+                    reportLink.href = `/api/v1/audit/${encodeURIComponent(item.id)}/pdf`;
+                    reportLink.target = "_blank";
+                    reportLink.rel = "noopener noreferrer";
+                    reportLink.className = "text-blue-600 hover:text-blue-800 text-xs font-semibold";
+                    reportLink.textContent = "Descargar PDF";
+                    reportCell.appendChild(reportLink);
+
+                    row.append(idCell, urlCell, riskCell, dateCell, reportCell);
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                loadingCell.className = "text-center py-6 text-red-500";
+                loadingCell.textContent = 'Error al cargar el historial: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
