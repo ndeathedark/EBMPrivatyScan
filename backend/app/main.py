@@ -93,41 +93,54 @@ async def quick_audit(request: AuditRequest, db: Session = Depends(get_db)):
             }
         )
 
-    if dom_results["has_contact_forms"]:
-        if not dom_results["has_form_checkbox"]:
-            risk_score += 20
-            findings.append(
-                {
-                    "category": "Formularios de Contacto",
-                    "status": "FAIL",
-                    "friendly_explanation": "Los formularios detectados no tienen casilla de consentimiento explícito.",
-                }
-            )
-        else:
-            findings.append(
-                {
-                    "category": "Formularios de Contacto",
-                    "status": "PASS",
-                    "friendly_explanation": "Los formularios incluyen casilla de verificación para protección de datos.",
-                }
-            )
+    findings.append(
+        {
+            "category": "Formularios de Contacto",
+            "status": "PASS" if dom_results["has_contact_forms"] else "NO DETECTADO",
+            "friendly_explanation": (
+                "Se detectaron formularios en la superficie principal del sitio."
+                if dom_results["has_contact_forms"]
+                else "No se detectaron formularios en la superficie principal del sitio."
+            ),
+        }
+    )
+
+    if dom_results["has_contact_forms"] and not dom_results["has_form_checkbox"]:
+        risk_score += 20
+        checkbox_status = "FAIL"
+        checkbox_explanation = (
+            "Los formularios detectados no tienen casilla de consentimiento explícito."
+        )
+    elif dom_results["has_form_checkbox"]:
+        checkbox_status = "PASS"
+        checkbox_explanation = (
+            "Se detectó una casilla de verificación en los formularios."
+        )
     else:
-        findings.append(
-            {
-                "category": "Formularios de Contacto",
-                "status": "PASS",
-                "friendly_explanation": "No se encontraron formularios expuestos en la superficie principal.",
-            }
+        checkbox_status = "NO APLICA"
+        checkbox_explanation = (
+            "No se encontraron formularios a los que aplicar esta comprobación."
         )
 
-    if dom_results["has_whatsapp"]:
-        findings.append(
-            {
-                "category": "Canal WhatsApp",
-                "status": "ALERTA",
-                "friendly_explanation": "Se detectó botón de WhatsApp; debe explicarse cómo se tratarán esas conversaciones.",
-            }
-        )
+    findings.append(
+        {
+            "category": "Consentimiento en formularios",
+            "status": checkbox_status,
+            "friendly_explanation": checkbox_explanation,
+        }
+    )
+
+    findings.append(
+        {
+            "category": "Canal WhatsApp",
+            "status": "ALERTA" if dom_results["has_whatsapp"] else "NO DETECTADO",
+            "friendly_explanation": (
+                "Se detectó un botón de WhatsApp; debe explicarse cómo se tratarán esas conversaciones."
+                if dom_results["has_whatsapp"]
+                else "No se detectaron enlaces o botones de WhatsApp en la superficie inspeccionada."
+            ),
+        }
+    )
 
     if not dom_results["has_privacy_policy"]:
         risk_score += 30

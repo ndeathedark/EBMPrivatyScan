@@ -27,6 +27,10 @@ def _status_cell(status: str) -> str:
         return "<font color='#059669'><b>APROBADO</b></font>"
     if normalized in {"ALERTA", "ALERT", "WARNING"}:
         return "<font color='#D97706'><b>ALERTA</b></font>"
+    if normalized == "NO DETECTADO":
+        return "<font color='#64748B'><b>NO DETECTADO</b></font>"
+    if normalized == "NO APLICA":
+        return "<font color='#64748B'><b>NO APLICA</b></font>"
     return "<font color='#DC2626'><b>FALLO</b></font>"
 
 
