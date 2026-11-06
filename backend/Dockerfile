@@ -23,9 +23,9 @@ RUN apt-get update && apt-get install -y \
     libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar solo las dependencias para instalar paquetes lockeados y seguros
+# Copiar las dependencias con versiones bloqueadas y verificadas por hash
 COPY requirements.txt ./
-RUN python -m pip install --no-cache-dir --only-binary=:all: -r requirements.txt
+RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt
 
 # Copiar el código de la aplicación sin incluir artefactos o secretos del entorno
 COPY app ./app

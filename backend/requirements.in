@@ -1,0 +1,5 @@
+fastapi==0.110.0
+uvicorn[standard]==0.27.0
+SQLAlchemy==2.0.29
+playwright==1.42.0
+reportlab==4.1.0
