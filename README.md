@@ -5,7 +5,7 @@
 ---
 
 ## 📋 Descripción del Proyecto
-**EBMPrivatyScan** es una herramienta desarrollada para la empresa **ADMI** como parte del proyecto integrado de la carrera de Ingeniería en Informática / Analista Programador en **INACAP**. 
+**EBMPrivatyScan** es una herramienta desarrollada como parte de proyecto integrado en la carrera de Ingeniería en Informática / Analista Programador en **INACAP**. 
 
 La plataforma automatiza la inspección de la superficie web de PyMEs y empresas, evaluando componentes críticos exigidos por la normativa de protección de datos personales (Ley N° 21.719), tales como encriptación HTTPS, gestión de cookies, formularios de consentimiento y canales de atención.
 
