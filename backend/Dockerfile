@@ -1,40 +1,31 @@
-# Usar imagen oficial de Python ligera
-FROM python:3.10-slim
+# Imagen del backend (API FastAPI + Chromium headless)
+FROM python:3.12-slim-bookworm
 
-# Directorio de trabajo
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias para Playwright / Chromium
-RUN apt-get update && apt-get install -y \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar las dependencias con versiones bloqueadas y verificadas por hash
+# Dependencias con versiones fijas y verificadas por hash (cadena de suministro)
 COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt
 
-# Copiar el código de la aplicación sin incluir artefactos o secretos del entorno
-COPY app ./app
+# Chromium y sus bibliotecas del sistema, instaladas por Playwright para su versión exacta
+RUN playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instalar los binarios de Playwright para Chromium
-RUN playwright install chromium
+# Usuario sin privilegios: el navegador nunca se ejecuta como root
+RUN useradd --system --uid 10001 --create-home --home-dir /home/app app \
+    && mkdir -p /data && chown app:app /data
 
-# Exponer el puerto de FastAPI
+COPY --chown=app:app app ./app
+
+USER app
 EXPOSE 8000
 
-# Comando para iniciar la aplicación
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]

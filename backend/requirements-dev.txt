@@ -1,0 +1,4 @@
+# Herramientas solo para desarrollo y pruebas (no se instalan en la imagen)
+pytest>=8.0
+httpx>=0.27
+pip-audit>=2.7

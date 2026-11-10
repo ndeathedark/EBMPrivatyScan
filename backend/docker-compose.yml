@@ -1,22 +1,48 @@
+# Entorno de desarrollo/demostración. Variables opcionales en backend/.env (ver .env.example).
 services:
   backend:
     build: .
     container_name: ebmprivatyscan_backend
-    working_dir: /workspace/backend
+    env_file:
+      - path: .env
+        required: false
     environment:
-      DATABASE_URL: sqlite:////workspace/sql_app.db
+      DATABASE_URL: sqlite:////data/sql_app.db
     volumes:
-      - ..:/workspace
-    restart: always
+      - ebm_data:/data            # solo los datos; el código queda dentro de la imagen
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+      - /home/app:size=64m
+    shm_size: 256m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 256
+    cpus: 1.5
+    restart: unless-stopped
+    # Sin "ports": la API solo es accesible desde Nginx dentro de la red de Docker.
 
   frontend:
-    image: nginx:alpine
+    image: nginxinc/nginx-unprivileged:1.27-alpine
     container_name: ebmprivatyscan_frontend
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ../frontend:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/proxy_params.inc:/etc/nginx/conf.d/proxy_params.inc:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     depends_on:
-      - backend
-    restart: always
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ebm_data:
