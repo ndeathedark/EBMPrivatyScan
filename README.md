@@ -1,81 +1,104 @@
-# 🛡️ EBMPrivatyScan
+# EBMPrivatyScan
 
-> **Sistema automatizado de diagnóstico de privacidad y ciberseguridad para sitios web**, diseñado específicamente para verificar el cumplimiento de la **Ley N° 21.719** en Chile.
+Diagnóstico **automatizado y preliminar** de la evidencia de privacidad visible en sitios web públicos,
+orientado a la **Ley N° 21.719** (Chile). Proyecto Integrado de Analista Programador (INACAP) para ADMI.
 
----
+> El informe describe lo que se observa desde un navegador. No es certificación de cumplimiento ni asesoría
+> jurídica, y puede tener falsos positivos o negativos.
 
-## 📋 Descripción del Proyecto
-**EBMPrivatyScan** es una herramienta desarrollada como parte de proyecto integrado en la carrera de Ingeniería en Informática / Analista Programador en **INACAP**. 
+## Qué revisa
 
-La plataforma automatiza la inspección de la superficie web de PyMEs y empresas, evaluando componentes críticos exigidos por la normativa de protección de datos personales (Ley N° 21.719), tales como encriptación HTTPS, gestión de cookies, formularios de consentimiento y canales de atención.
+| Comprobación | Evidencia que recopila |
+|---|---|
+| HTTPS (RF03) | Conexión TLS en 443, validez del certificado, versión TLS, vencimiento, URL final y HSTS |
+| Banner de cookies (RF04) | Presencia, botones aceptar / rechazar / configurar, plataforma CMP conocida |
+| Rastreadores antes del consentimiento (RF04, RF08) | Solicitudes a proveedores de una lista documentada y cookies de seguimiento durante la carga inicial |
+| Respeto del rechazo (RF04) | Pulsa “Rechazar” (única interacción) y observa si siguen cargándose rastreadores |
+| Formularios (RF05) | Campos personales, casillas de consentimiento y si vienen marcadas, información visible, envío sin cifrar |
+| WhatsApp (RF06) | Enlaces/botones y aviso visible sobre el tratamiento de las conversaciones |
+| Política de privacidad (RF07) | Enlace, lectura del contenido: fecha, organización, derechos, contacto, mención de Ley 21.719 o 19.628 |
+| Recursos de terceros | Dominios externos contactados (informativo) |
 
----
+Cada hallazgo tiene estado (`CUMPLE`, `BRECHA`, `ALERTA`, `NO_CONCLUYENTE`, `NO_APLICA`, `INFORMATIVO`),
+severidad, evidencia, explicación en lenguaje simple y limitación. El indicador de riesgo es
+`Σ(peso × factor) / Σ(pesos aplicables)`; los pesos están documentados en `backend/app/services/rules.py`.
 
-## 🚀 Características Principales
+## Arquitectura
 
-* **Inspección SSL/HTTPS**: Verificación de certificados de seguridad válidos y encriptación en tránsito.
-* **Escaneo DOM con Playwright**: Análisis automatizado de la interfaz visible para detectar:
-  * Banners de consentimiento de cookies.
-  * Formularios de contacto y validación de casillas de verificación (*checkboxes* de privacidad).
-  * Canales de mensajería (botones flotantes de WhatsApp).
-  * Enlaces a Políticas de Privacidad y avisos legales.
-* **Motor de Cálculo de Riesgo**: Ponderación dinámica del nivel de vulnerabilidad del sitio web.
-* **Persistencia e Historial (Panel ADMI)**: Almacenamiento automático de cada auditoría en base de datos SQLite con un panel administrativo para consultar registros anteriores.
-* **Generador de Informes PDF**: Exportación de reportes formales y profesionales listos para ser entregados al cliente.
-* **Dockerizado**: Entorno listo para producción y despliegue rápido mediante Docker y Docker Compose.
+```text
+Navegador ──► Nginx (frontend estático + CSP + límites) ──► FastAPI ──► Chromium headless (Playwright)
+                                                              │
+                                                              └─► SQLite (por defecto) / PostgreSQL
+```
 
----
+```text
+backend/
+├── app/
+│   ├── config.py            # Configuración por variables de entorno
+│   ├── security.py          # Contraseñas (scrypt), sesión JWT en cookie HttpOnly, permisos, límites
+│   ├── database.py          # Motor SQLAlchemy (SQLite/PostgreSQL)
+│   ├── cli.py               # Crear administradores
+│   ├── models/audit.py      # USUARIO 1—N AUDITORIA 1—N HALLAZGO
+│   ├── routers/             # auth.py (cuentas) y audits.py (análisis, historial, PDF, correo)
+│   └── services/            # url_guard (anti-SSRF), tls_check, dom_inspector, trackers, rules,
+│                            # pdf_generator, mailer, retention
+├── tests/                   # Pruebas automatizadas (pytest)
+├── nginx/                   # Configuración del proxy
+├── Dockerfile · docker-compose.yml · requirements.in/.txt · .env.example
+frontend/
+├── index.html · app.js · styles.css   # Sin CDN ni scripts en línea
+└── privacidad.html                    # Política de privacidad de la propia plataforma
+```
 
-## 🛠️ Tecnologías Utilizadas
+## Ejecución con Docker
 
-* **Backend**: Python 3.10+, FastAPI, SQLAlchemy, SQLite, Playwright (Async).
-* **Generación de Documentos**: ReportLab (PDF).
-* **Frontend**: HTML5, Tailwind CSS, JavaScript (Vanilla).
-* **Despliegue**: Docker, Docker Compose.
-
-## 🚀 Ejecución local
-
-Desde la raíz del proyecto, inicia el backend y el frontend con Docker Compose:
+Requiere Docker Compose v2.24 o superior.
 
 ```bash
+cp backend/.env.example backend/.env          # opcional: completar SECRET_KEY, SMTP, etc.
 docker compose -f backend/docker-compose.yml up --build
 ```
 
-Abre `http://localhost:8080` para usar la interfaz. Nginx sirve el frontend y reenvía las rutas `/api/` al backend, que solo es accesible dentro de la red interna de Docker. Para detener y retirar los contenedores:
+Abrir `http://localhost:8080`. La base de datos se guarda en el volumen `ebm_data`.
+
+Crear un administrador:
 
 ```bash
-docker compose -f backend/docker-compose.yml down
+docker compose -f backend/docker-compose.yml exec backend python -m app.cli create-admin correo@admi.cl
 ```
 
-La base de datos SQLite se guarda en `sql_app.db` en la raíz del proyecto.
+> **Actualización desde la versión anterior:** el esquema cambió (usuarios y hallazgos normalizados).
+> Si existe un `sql_app.db` antiguo, respáldalo y elimínalo; la API se niega a iniciar con el esquema viejo.
 
-### Compartir el prototipo con Dev Tunnels
+## Pruebas
 
-1. Inicia los servicios con el comando Docker Compose anterior y verifica que la interfaz cargue en `http://localhost:8080`.
-2. En VS Code, reenvía el puerto `8080` desde la vista **Ports** y comparte la URL HTTPS del túnel con acceso **privado**, solo para participantes invitados.
-3. Las solicitudes del navegador usan rutas relativas (`/api/...`), por lo que pasan por el mismo túnel y Nginx las reenvía al backend. El backend no publica un puerto en el host; no configures un túnel separado para él.
-4. Cierra el túnel y detén los servicios al terminar las pruebas.
+```bash
+cd backend
+pip install --require-hashes -r requirements.txt
+pip install -r requirements-dev.txt
+python -m pytest -q
+pip-audit -r requirements.txt --require-hashes
+```
 
-El prototipo no implementa autenticación ni separación del historial por usuario. Aunque el túnel se configure como privado, compártelo solo con personas de confianza y pide analizar únicamente sitios para los que el equipo tenga autorización. No uses datos personales ni consideres este montaje como un despliegue de producción.
+Las pruebas simulan el navegador y la conexión TLS; el análisis real con Chromium debe validarse en el
+contenedor con sitios autorizados.
 
----
+## Seguridad: resumen
 
-## 📂 Estructura del Repositorio
+- Anti-SSRF: solo http/https, puertos 80/443/8080/8443, sin credenciales en la URL, solo IP públicas;
+  validación de **cada salto de redirección** y de cada recurso; IP del host fijada en Chromium; service workers bloqueados.
+- Cuentas: contraseñas con scrypt, política de contraseñas, respuestas que no revelan cuentas, límite de intentos.
+- Sesión en cookie `HttpOnly` + `SameSite=Strict` (+ `Secure` con HTTPS) y encabezado anti-CSRF obligatorio.
+- Historial privado por cuenta; acceso a informes de invitado solo con token aleatorio (no por ID secuencial).
+- Retención automática (24 h invitados, 180 días cuentas), eliminación de análisis y de cuenta.
+- CSP estricta, encabezados de seguridad, límites de tamaño y de tasa en Nginx y en la API.
+- Contenedores sin root, sistema de archivos de solo lectura, sin capacidades, con límites de memoria y procesos.
+- Dependencias fijadas con hashes y auditadas con `pip-audit` (también en CI).
 
-```text
-EBMPrivatyScan/
-├── .gitignore
-├── backend/
-│   ├── .dockerignore
-│   ├── app/
-│   │   ├── models/          # Modelos de base de datos (SQLAlchemy)
-│   │   ├── services/        # Motores de análisis DOM (Playwright) y PDF
-│   │   ├── database.py      # Configuración de SQLite
-│   │   └── main.py          # Punto de entrada de FastAPI
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── requirements.txt
-├── frontend/
-│   └── index.html           # Interfaz gráfica (Evaluador y Panel ADMI)
-├── sql_app.db               # Base de datos local (no se versiona)
-└── README.md                # Documentación del proyecto
+### Pendiente antes de producción
+
+- Reglas de **salida de red** (firewall/egress) para el contenedor del backend que bloqueen rangos privados y
+  metadatos de la nube: es la defensa definitiva contra SSRF y DNS rebinding.
+- HTTPS real, `APP_ENV=production`, `COOKIE_SECURE=true`, HSTS, WAF/CDN.
+- Limitador de tasa compartido (Redis) si hay más de una réplica; PostgreSQL con respaldos cifrados.
+- Revisión legal de `privacidad.html` y de los textos de los hallazgos; pruebas con usuarios.

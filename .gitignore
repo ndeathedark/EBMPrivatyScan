@@ -3,5 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
-sql_app.db
-backend/sql_app.db
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
