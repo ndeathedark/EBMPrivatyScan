@@ -16,7 +16,8 @@ def test_rejects_unsafe_targets(url):
 
 def test_accepts_public_ip_literal():
     result = validate_public_url("https://93.184.215.14/")
-    assert result["addresses"] == ["93.184.215.14"] and result["port"] == 443
+    assert result["addresses"] == ["93.184.215.14"]
+    assert result["port"] == 443
 
 
 def test_registrable_domain():

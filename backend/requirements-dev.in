@@ -1,0 +1,7 @@
+# Herramientas de desarrollo y pruebas (no se instalan en la imagen).
+# Regenerar requirements-dev.txt (bloqueado con hashes, incluye las dependencias de la app):
+#   uv pip compile requirements-dev.in -c requirements.txt --universal --python-version 3.11 --generate-hashes --only-binary :all: -o requirements-dev.txt
+-r requirements.in
+pytest==9.2.0
+httpx==0.28.1
+pip-audit==2.10.1

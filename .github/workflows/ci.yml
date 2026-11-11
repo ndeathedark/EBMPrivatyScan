@@ -10,12 +10,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Instalar dependencias (verificadas por hash)
-        run: |
-          pip install --require-hashes -r backend/requirements.txt
-          pip install -r backend/requirements-dev.txt
+      - name: Instalar dependencias (versiones bloqueadas, solo binarios, verificadas por hash)
+        # requirements-dev.txt incluye las dependencias de la app y las herramientas de prueba.
+        # --only-binary evita ejecutar scripts de instalación de paquetes fuente.
+        run: pip install --only-binary=:all: --require-hashes -r backend/requirements-dev.txt
       - name: Pruebas automatizadas
         working-directory: backend
         run: python -m pytest -q
       - name: Auditoría de dependencias vulnerables
-        run: pip-audit -r backend/requirements.txt --require-hashes
+        run: pip-audit -r backend/requirements-dev.txt --require-hashes --disable-pip

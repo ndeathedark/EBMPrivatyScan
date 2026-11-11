@@ -51,7 +51,9 @@ function formatDate(value) {
   } catch (_) { return String(value); }
 }
 function riskColor(risk) {
-  return risk > 50 ? 'var(--gap)' : risk > 20 ? 'var(--warn)' : 'var(--ok)';
+  if (risk > 50) return 'var(--gap)';
+  if (risk > 20) return 'var(--warn)';
+  return 'var(--ok)';
 }
 
 // ------------------------------------------------------------------ Vistas
@@ -61,7 +63,7 @@ function setView(view) {
   document.querySelectorAll('.nav-link').forEach((b) => {
     if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
-  if (view === 'history') loadHistory();
+  if (view === 'history') void loadHistory();
 }
 
 function renderSession() {
@@ -79,7 +81,11 @@ async function refreshSession() {
   try {
     const data = await api('/auth/me');
     state.user = data.authenticated ? data.user : null;
-  } catch (_) { state.user = null; }
+  } catch (err) {
+    // Sin sesión válida o API no disponible: la interfaz sigue funcionando en modo invitado.
+    console.info('Sesión no disponible:', err.message);
+    state.user = null;
+  }
   renderSession();
 }
 
@@ -113,63 +119,87 @@ async function runAudit(event) {
   }
 }
 
-function renderResult(data) {
-  state.audit = data;
-  $('resTitle').textContent = data.final_url && data.final_url !== data.url ? `${data.url} → ${data.final_url}` : data.url;
-  $('resMeta').textContent = `Analizado el ${formatDate(data.created_at)}. Disponible hasta el ${formatDate(data.expires_at)}.`;
-  const risk = Number(data.risk_percentage) || 0;
+function formatEvidenceValue(value) {
+  if (typeof value === 'boolean') return value ? 'sí' : 'no';
+  if (Array.isArray(value)) return value.join(', ');
+  return String(value);
+}
+
+function isEmptyEvidence(value) {
+  return value === null || value === '' || (Array.isArray(value) && value.length === 0);
+}
+
+function buildEvidenceList(evidence) {
+  const dl = document.createElement('dl');
+  dl.className = 'evidence';
+  for (const [key, value] of Object.entries(evidence || {})) {
+    if (isEmptyEvidence(value)) continue;
+    const dt = document.createElement('dt');
+    dt.textContent = key.replaceAll('_', ' ');
+    const dd = document.createElement('dd');
+    dd.textContent = formatEvidenceValue(value);
+    dl.append(dt, dd);
+  }
+  return dl;
+}
+
+function buildFinding(f) {
+  const li = document.createElement('li');
+  li.className = `finding st-${f.status}`;
+
+  const top = document.createElement('div');
+  top.className = 'finding-top';
+  const h3 = document.createElement('h3');
+  h3.textContent = f.category;
+  const badge = document.createElement('span');
+  badge.className = 'status';
+  badge.textContent = STATUS_LABELS[f.status] || f.status;
+  top.append(h3, badge);
+
+  const p = document.createElement('p');
+  p.textContent = f.explanation;
+
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = 'Ver evidencia y limitaciones';
+  details.append(summary, buildEvidenceList(f.evidence));
+  if (f.limitation) {
+    const lim = document.createElement('p');
+    lim.className = 'limitation';
+    lim.textContent = 'Limitación: ' + f.limitation;
+    details.append(lim);
+  }
+  li.append(top, p, details);
+  return li;
+}
+
+function renderGauge(risk) {
   $('resRisk').textContent = String(risk);
   $('gauge').style.setProperty('--risk-color', riskColor(risk));
   $('scaleMarker').style.left = '0%';
   requestAnimationFrame(() => { $('scaleMarker').style.left = `${Math.min(100, Math.max(0, risk))}%`; });
+}
+
+function resultTitle(data) {
+  if (data.final_url && data.final_url !== data.url) return `${data.url} → ${data.final_url}`;
+  return data.url;
+}
+
+function renderResult(data) {
+  state.audit = data;
+  $('resTitle').textContent = resultTitle(data);
+  $('resMeta').textContent = `Analizado el ${formatDate(data.created_at)}. Disponible hasta el ${formatDate(data.expires_at)}.`;
+  renderGauge(Number(data.risk_percentage) || 0);
   show($('guestNotice'), !data.owned);
+  $('findingsList').replaceChildren(...(data.findings || []).map(buildFinding));
 
-  const list = $('findingsList');
-  list.replaceChildren();
-  for (const f of data.findings || []) {
-    const li = document.createElement('li');
-    li.className = `finding st-${f.status}`;
-    const top = document.createElement('div');
-    top.className = 'finding-top';
-    const h3 = document.createElement('h3');
-    h3.textContent = f.category;
-    const badge = document.createElement('span');
-    badge.className = 'status';
-    badge.textContent = STATUS_LABELS[f.status] || f.status;
-    top.append(h3, badge);
-
-    const p = document.createElement('p');
-    p.textContent = f.explanation;
-
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = 'Ver evidencia y limitaciones';
-    const dl = document.createElement('dl');
-    dl.className = 'evidence';
-    for (const [key, value] of Object.entries(f.evidence || {})) {
-      if (value === null || value === '' || (Array.isArray(value) && !value.length)) continue;
-      const dt = document.createElement('dt');
-      dt.textContent = key.replace(/_/g, ' ');
-      const dd = document.createElement('dd');
-      dd.textContent = typeof value === 'boolean' ? (value ? 'sí' : 'no') : Array.isArray(value) ? value.join(', ') : String(value);
-      dl.append(dt, dd);
-    }
-    details.append(summary, dl);
-    if (f.limitation) {
-      const lim = document.createElement('p');
-      lim.className = 'limitation';
-      lim.textContent = 'Limitación: ' + f.limitation;
-      details.append(lim);
-    }
-    li.append(top, p, details);
-    list.append(li);
-  }
   show($('emailForm'), false);
   $('btnShowEmail').setAttribute('aria-expanded', 'false');
   message($('actionMsg'), '');
   show($('results'));
   $('resTitle').focus({ preventScroll: true });
-  $('results').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('results').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
 async function downloadPdf(auditId) {
@@ -266,7 +296,7 @@ async function loadHistory() {
       pdfBtn.addEventListener('click', () => downloadPdf(item.id).catch((err) => alert(err.message)));
       const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'btn btn-danger-quiet'; delBtn.textContent = 'Eliminar';
       delBtn.addEventListener('click', async () => {
-        try { if (await deleteAudit(item.id)) loadHistory(); } catch (err) { alert(err.message); }
+        try { if (await deleteAudit(item.id)) await loadHistory(); } catch (err) { alert(err.message); }
       });
       actions.append(viewBtn, pdfBtn, delBtn);
       actTd.append(actions);
@@ -361,5 +391,5 @@ document.addEventListener('DOMContentLoaded', () => {
   $('authSwitch').addEventListener('click', () => setAuthMode(state.authMode === 'login' ? 'register' : 'login'));
   $('authCancel').addEventListener('click', () => $('authDialog').close());
   $('authForm').addEventListener('submit', onAuthSubmit);
-  refreshSession();
+  void refreshSession();
 });

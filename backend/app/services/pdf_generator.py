@@ -29,6 +29,14 @@ except Exception:  # noqa: BLE001 - sin base de zonas horarias en la imagen
     LOCAL_TZ = timezone.utc
 
 
+def _risk_color(risk: int) -> str:
+    if risk > 50:
+        return "#B3261E"
+    if risk > 20:
+        return "#A85F00"
+    return "#0E7C66"
+
+
 def _t(value, default: str = "") -> str:
     return escape(str(value if value is not None else default), {'"': "&quot;"})
 
@@ -66,7 +74,7 @@ def generate_audit_pdf(url: str, risk_percentage: int, findings: list, created_a
         created = created.replace(tzinfo=timezone.utc)
     date_str = created.astimezone(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
     risk = max(0, min(int(risk_percentage or 0), 100))
-    risk_color = "#B3261E" if risk > 50 else "#A85F00" if risk > 20 else "#0E7C66"
+    risk_color = _risk_color(risk)
 
     el = [
         Paragraph("EBMPrivatyScan", title),

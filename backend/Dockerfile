@@ -8,16 +8,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Dependencias con versiones fijas y verificadas por hash (cadena de suministro)
 COPY requirements.txt ./
-RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt
 
-# Chromium y sus bibliotecas del sistema, instaladas por Playwright para su versión exacta
-RUN playwright install --with-deps chromium \
-    && rm -rf /var/lib/apt/lists/*
-
-# Usuario sin privilegios: el navegador nunca se ejecuta como root
-RUN useradd --system --uid 10001 --create-home --home-dir /home/app app \
+# En una sola capa:
+#  1. Dependencias con versiones fijas y verificadas por hash (cadena de suministro).
+#  2. Chromium y sus bibliotecas del sistema, para la versión exacta de Playwright.
+#  3. Usuario sin privilegios: el navegador nunca se ejecuta como root.
+RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home --home-dir /home/app app \
     && mkdir -p /data && chown app:app /data
 
 COPY --chown=app:app app ./app

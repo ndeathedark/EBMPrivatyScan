@@ -52,19 +52,19 @@
         <p id="formError" class="notice notice-error" role="alert" hidden></p>
       </form>
 
-      <div id="loading" class="loading" role="status" aria-live="polite" hidden>
+      <output id="loading" class="loading" aria-live="polite" hidden>
         <span class="spinner" aria-hidden="true"></span>
-        <div>
-          <p><strong>Analizando el sitio…</strong></p>
-          <p class="help">Abrimos la página en un navegador aislado, observamos qué carga antes y después de rechazar
-            las cookies y leemos su política de privacidad. Suele tardar entre 10 y 30 segundos.</p>
-        </div>
-      </div>
+        <span class="loading-text">
+          <strong>Analizando el sitio…</strong>
+          <span class="help">Abrimos la página en un navegador aislado, observamos qué carga antes y después de rechazar
+            las cookies y leemos su política de privacidad. Suele tardar entre 10 y 30 segundos.</span>
+        </span>
+      </output>
 
       <article id="results" class="results" hidden aria-labelledby="resTitle">
         <header class="result-head">
           <div>
-            <h2 id="resTitle" class="result-url" tabindex="-1"></h2>
+            <h2 id="resTitle" class="result-url" tabindex="-1">Resultado del análisis</h2>
             <p class="help" id="resMeta"></p>
           </div>
           <div class="gauge" id="gauge">
@@ -97,7 +97,7 @@
           </div>
           <p class="help">Usamos el correo solo para este envío y no lo guardamos.</p>
         </form>
-        <p id="actionMsg" class="notice" role="status" hidden></p>
+        <output id="actionMsg" class="notice" aria-live="polite" hidden></output>
 
         <p class="disclaimer">
           Diagnóstico automatizado y preliminar de la evidencia visible desde un navegador. No es una certificación de

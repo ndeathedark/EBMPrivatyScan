@@ -6,58 +6,76 @@ es parte del mantenimiento del sistema (ver LIST_VERSION).
 """
 LIST_VERSION = "2026-11"
 
+# Finalidades probables
+ANALITICA = "analítica"
+PUBLICIDAD = "publicidad"
+REMARKETING = "publicidad / remarketing"
+SESIONES = "grabación de sesiones / analítica"
+MARKETING = "marketing / analítica"
+
+# Proveedores
+GOOGLE_ANALYTICS = "Google Analytics"
+GOOGLE_ADS = "Google Ads"
+META_PIXEL = "Meta Pixel"
+MS_CLARITY = "Microsoft Clarity"
+MS_ADS = "Microsoft Ads"
+LINKEDIN = "LinkedIn Insight"
+X_ADS = "X (Twitter) Ads"
+CRITEO = "Criteo"
+HUBSPOT = "HubSpot"
+
 # dominio (o sufijo) -> (proveedor, finalidad probable)
 TRACKER_PATTERNS: dict[str, tuple[str, str]] = {
-    "google-analytics.com": ("Google Analytics", "analítica"),
-    "analytics.google.com": ("Google Analytics", "analítica"),
+    "google-analytics.com": (GOOGLE_ANALYTICS, ANALITICA),
+    "analytics.google.com": (GOOGLE_ANALYTICS, ANALITICA),
     "googletagmanager.com": ("Google Tag Manager", "gestor de etiquetas"),
-    "doubleclick.net": ("Google Ads / DoubleClick", "publicidad"),
-    "googleadservices.com": ("Google Ads", "publicidad / remarketing"),
-    "googlesyndication.com": ("Google AdSense", "publicidad"),
-    "adservice.google.com": ("Google Ads", "publicidad"),
-    "connect.facebook.net": ("Meta Pixel", "publicidad / remarketing"),
-    "facebook.com/tr": ("Meta Pixel", "publicidad / remarketing"),
-    "hotjar.com": ("Hotjar", "grabación de sesiones / analítica"),
-    "clarity.ms": ("Microsoft Clarity", "grabación de sesiones / analítica"),
-    "bat.bing.com": ("Microsoft Ads", "publicidad / remarketing"),
-    "analytics.tiktok.com": ("TikTok Pixel", "publicidad / remarketing"),
-    "snap.licdn.com": ("LinkedIn Insight", "publicidad / remarketing"),
-    "px.ads.linkedin.com": ("LinkedIn Insight", "publicidad / remarketing"),
-    "static.ads-twitter.com": ("X (Twitter) Ads", "publicidad"),
-    "analytics.twitter.com": ("X (Twitter) Ads", "publicidad"),
-    "ct.pinterest.com": ("Pinterest Tag", "publicidad"),
-    "mc.yandex.ru": ("Yandex Metrica", "analítica"),
-    "cdn.segment.com": ("Segment", "analítica"),
-    "mixpanel.com": ("Mixpanel", "analítica"),
-    "amplitude.com": ("Amplitude", "analítica"),
-    "taboola.com": ("Taboola", "publicidad"),
-    "outbrain.com": ("Outbrain", "publicidad"),
-    "criteo.com": ("Criteo", "publicidad / remarketing"),
-    "criteo.net": ("Criteo", "publicidad / remarketing"),
+    "doubleclick.net": ("Google Ads / DoubleClick", PUBLICIDAD),
+    "googleadservices.com": (GOOGLE_ADS, REMARKETING),
+    "googlesyndication.com": ("Google AdSense", PUBLICIDAD),
+    "adservice.google.com": (GOOGLE_ADS, PUBLICIDAD),
+    "connect.facebook.net": (META_PIXEL, REMARKETING),
+    "facebook.com/tr": (META_PIXEL, REMARKETING),
+    "hotjar.com": ("Hotjar", SESIONES),
+    "clarity.ms": (MS_CLARITY, SESIONES),
+    "bat.bing.com": (MS_ADS, REMARKETING),
+    "analytics.tiktok.com": ("TikTok Pixel", REMARKETING),
+    "snap.licdn.com": (LINKEDIN, REMARKETING),
+    "px.ads.linkedin.com": (LINKEDIN, REMARKETING),
+    "static.ads-twitter.com": (X_ADS, PUBLICIDAD),
+    "analytics.twitter.com": (X_ADS, PUBLICIDAD),
+    "ct.pinterest.com": ("Pinterest Tag", PUBLICIDAD),
+    "mc.yandex.ru": ("Yandex Metrica", ANALITICA),
+    "cdn.segment.com": ("Segment", ANALITICA),
+    "mixpanel.com": ("Mixpanel", ANALITICA),
+    "amplitude.com": ("Amplitude", ANALITICA),
+    "taboola.com": ("Taboola", PUBLICIDAD),
+    "outbrain.com": ("Outbrain", PUBLICIDAD),
+    "criteo.com": (CRITEO, REMARKETING),
+    "criteo.net": (CRITEO, REMARKETING),
     "scorecardresearch.com": ("Comscore", "medición de audiencias"),
-    "quantserve.com": ("Quantcast", "publicidad"),
-    "hubspot.com": ("HubSpot", "marketing / analítica"),
-    "hs-scripts.com": ("HubSpot", "marketing / analítica"),
-    "hs-analytics.net": ("HubSpot", "marketing / analítica"),
+    "quantserve.com": ("Quantcast", PUBLICIDAD),
+    "hubspot.com": (HUBSPOT, MARKETING),
+    "hs-scripts.com": (HUBSPOT, MARKETING),
+    "hs-analytics.net": (HUBSPOT, MARKETING),
 }
 
 # Cookies de seguimiento conocidas (prefijo -> proveedor)
 TRACKING_COOKIE_PREFIXES: dict[str, str] = {
-    "_ga": "Google Analytics",
-    "_gid": "Google Analytics",
-    "_gat": "Google Analytics",
-    "_gcl_": "Google Ads",
-    "_fbp": "Meta Pixel",
-    "_fbc": "Meta Pixel",
+    "_ga": GOOGLE_ANALYTICS,
+    "_gid": GOOGLE_ANALYTICS,
+    "_gat": GOOGLE_ANALYTICS,
+    "_gcl_": GOOGLE_ADS,
+    "_fbp": META_PIXEL,
+    "_fbc": META_PIXEL,
     "_hj": "Hotjar",
-    "_clck": "Microsoft Clarity",
-    "_clsk": "Microsoft Clarity",
-    "_uetsid": "Microsoft Ads",
-    "_uetvid": "Microsoft Ads",
+    "_clck": MS_CLARITY,
+    "_clsk": MS_CLARITY,
+    "_uetsid": MS_ADS,
+    "_uetvid": MS_ADS,
     "_ttp": "TikTok Pixel",
     "li_": "LinkedIn",
     "_pin_unauth": "Pinterest",
-    "hubspotutk": "HubSpot",
+    "hubspotutk": HUBSPOT,
     "_ym_": "Yandex Metrica",
 }
 
