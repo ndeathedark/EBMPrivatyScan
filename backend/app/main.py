@@ -34,8 +34,11 @@ async def _retention_loop() -> None:
 async def lifespan(_app: FastAPI):
     init_db()
     task = asyncio.create_task(_retention_loop())
-    yield
-    task.cancel()
+    try:
+        yield
+    finally:
+        # Se ejecuta siempre, incluso si el servidor se detiene por un error.
+        task.cancel()
 
 
 app = FastAPI(

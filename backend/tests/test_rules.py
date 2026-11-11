@@ -19,7 +19,8 @@ def test_findings_and_risk():
     assert f["Formularios y consentimiento"]["status"] == "BRECHA"      # casilla premarcada
     assert f["Política de privacidad"]["status"] == "BRECHA"
     assert f["Canal WhatsApp"]["status"] == "ALERTA"
-    assert all(item["explanation"] and item["limitation"] for item in findings)
+    assert all(item["explanation"] for item in findings)
+    assert all(item["limitation"] for item in findings)
     assert 0 < risk <= 100
 
 
@@ -45,8 +46,10 @@ def test_connection_error_is_not_success():
 
 def test_policy_analysis_detects_outdated_law():
     a = analyse_policy_text("Conforme a la Ley 19.628, Comercial Sur SpA trata sus datos.")
-    assert a["mentions_law_19628"] and not a["mentions_law_21719"]
-    assert a["organization"] and a["organization"].endswith("SpA")
+    assert a["mentions_law_19628"]
+    assert not a["mentions_law_21719"]
+    assert a["organization"]
+    assert a["organization"].endswith("SpA")
 
 
 def test_partial_load_is_reported_as_limitation():

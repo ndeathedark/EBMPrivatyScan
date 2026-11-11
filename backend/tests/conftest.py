@@ -58,7 +58,6 @@ def _mock_network(monkeypatch):
     monkeypatch.setattr(audits_router, "check_tls", lambda *a, **k: FAKE_TLS)
     monkeypatch.setattr(audits_router, "validate_public_url", fake_validate)
     rate_limiter.reset()
-    yield
 
 
 @pytest.fixture

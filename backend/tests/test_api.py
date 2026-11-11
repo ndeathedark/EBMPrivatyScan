@@ -40,12 +40,14 @@ def test_invalid_and_private_urls(client):
 
 def test_guest_report_requires_token(client):
     data = guest_audit(client)
-    assert data["access_token"] and data["findings"]
+    assert data["access_token"]
+    assert data["findings"]
     aid = data["id"]
     assert client.get(f"/api/v1/audit/{aid}").status_code == 404                     # sin token: no expone el ID
     assert client.get(f"/api/v1/audit/{aid}", headers={"X-Audit-Token": "falso"}).status_code == 404
     ok = client.get(f"/api/v1/audit/{aid}/pdf", headers={"X-Audit-Token": data["access_token"]})
-    assert ok.status_code == 200 and ok.content.startswith(b"%PDF")
+    assert ok.status_code == 200
+    assert ok.content.startswith(b"%PDF")
     assert client.get("/api/v1/history").status_code == 401                            # historial ya no es público
 
 
@@ -90,7 +92,8 @@ def test_admin_can_see_all(client):
 def test_login_rate_limit(client):
     codes = [client.post("/api/v1/auth/login", json={"email": "x@y.cl", "password": "Mala12345x"}, headers=CSRF).status_code
              for _ in range(12)]
-    assert codes[0] == 401 and codes[-1] == 429
+    assert codes[0] == 401
+    assert codes[-1] == 429
 
 
 def test_delete_audit_and_account(client):
