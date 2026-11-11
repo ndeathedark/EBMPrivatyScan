@@ -13,7 +13,8 @@ jobs:
       - name: Instalar dependencias (versiones bloqueadas, solo binarios, verificadas por hash)
         # requirements-dev.txt incluye las dependencias de la app y las herramientas de prueba.
         # --only-binary evita ejecutar scripts de instalación de paquetes fuente.
-        run: pip install --only-binary=:all: --require-hashes -r backend/requirements-dev.txt
+        run: |
+          pip install --only-binary=:all: --require-hashes -r backend/requirements-dev.txt
       - name: Pruebas automatizadas
         working-directory: backend
         run: python -m pytest -q
