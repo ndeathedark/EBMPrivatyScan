@@ -1,4 +1,9 @@
-"""Auditorías: análisis, detalle, historial privado, PDF, correo y eliminación."""
+"""Auditorías: análisis, detalle, historial privado, PDF, correo y eliminación.
+
+Regla de acceso a los detalles: cualquier persona puede analizar un sitio y ver el
+indicador de riesgo, pero los hallazgos, el PDF y el envío por correo requieren una
+cuenta. Un invitado puede registrarse después y reclamar su análisis con el token.
+"""
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
@@ -43,7 +48,7 @@ class EmailRequest(BaseModel):
     email: str = Field(max_length=254)
 
 
-def _as_aware(value: datetime | None) -> datetime | None:
+def as_aware(value: datetime | None) -> datetime | None:
     if value is not None and value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value
@@ -56,8 +61,8 @@ def serialize_audit(audit: AuditRecord, full: bool = True) -> dict:
         "final_url": audit.final_url,
         "risk_percentage": audit.risk_percentage,
         "status": audit.status,
-        "created_at": _as_aware(audit.created_at),
-        "expires_at": _as_aware(audit.expires_at),
+        "created_at": as_aware(audit.created_at),
+        "expires_at": as_aware(audit.expires_at),
         "owned": audit.user_id is not None,
     }
     if full:
@@ -75,14 +80,39 @@ def serialize_audit(audit: AuditRecord, full: bool = True) -> dict:
     return data
 
 
+LOCKED_MESSAGE = "Inicia sesión o crea una cuenta gratuita para ver el detalle y descargar el informe."
+
+
+def can_view_details(audit: AuditRecord, user: Optional[User]) -> bool:
+    """Solo el dueño del análisis o un administrador ven los hallazgos."""
+    return user is not None and (user.role == "admin" or audit.user_id == user.id)
+
+
+def serialize_for(audit: AuditRecord, user: Optional[User]) -> dict:
+    if can_view_details(audit, user):
+        data = serialize_audit(audit)
+        data["details_locked"] = False
+        return data
+    data = serialize_audit(audit, full=False)
+    data["details_locked"] = True
+    return data
+
+
 def _get_accessible_audit(audit_id: int, db: Session, user: Optional[User], token: Optional[str]) -> AuditRecord:
     audit = db.get(AuditRecord, audit_id)
     now = datetime.now(timezone.utc)
     # Respuesta idéntica para "no existe" y "sin permiso": no revela qué IDs existen.
-    if audit is None or _as_aware(audit.expires_at) < now or not can_access_audit(audit, user, token):
+    if audit is None or as_aware(audit.expires_at) < now or not can_access_audit(audit, user, token):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
     if user is not None and user.role == "admin" and audit.user_id != user.id:
         logger.info("Acceso administrativo a auditoría id=%s por usuario id=%s", audit.id, user.id)
+    return audit
+
+
+def _get_detailed_audit(audit_id: int, db: Session, user: Optional[User], token: Optional[str]) -> AuditRecord:
+    audit = _get_accessible_audit(audit_id, db, user, token)
+    if not can_view_details(audit, user):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, LOCKED_MESSAGE)
     return audit
 
 
@@ -144,8 +174,9 @@ async def quick_audit(body: AuditRequest, request: Request,
     db.commit()
     db.refresh(audit)
 
-    result = serialize_audit(audit)
-    # El token se entrega una sola vez; en la base solo se guarda su hash.
+    result = serialize_for(audit, user)
+    # El token se entrega una sola vez; en la base solo se guarda su hash. Al invitado
+    # le permite eliminar su análisis o reclamarlo después de crear una cuenta.
     result["access_token"] = token
     return result
 
@@ -153,13 +184,32 @@ async def quick_audit(body: AuditRequest, request: Request,
 @router.get("/audit/{audit_id}")
 def get_audit(audit_id: int, user: Optional[User] = Depends(get_optional_user), db: Session = Depends(get_db),
               x_audit_token: Optional[str] = Header(default=None, max_length=128)):
-    return serialize_audit(_get_accessible_audit(audit_id, db, user, x_audit_token))
+    return serialize_for(_get_accessible_audit(audit_id, db, user, x_audit_token), user)
+
+
+@router.post("/audit/{audit_id}/claim")
+def claim_audit(audit_id: int, user: User = Depends(require_user), db: Session = Depends(get_db),
+                x_audit_token: Optional[str] = Header(default=None, max_length=128)):
+    """Asocia a la cuenta un análisis hecho como invitado (requiere el token del análisis)."""
+    if not x_audit_token:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
+    audit = _get_accessible_audit(audit_id, db, None, x_audit_token)
+    if audit.user_id is not None and audit.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
+    if audit.user_id is None:
+        audit.user_id = user.id
+        # Pasa a la conservación de las cuentas, contada desde la fecha del análisis.
+        audit.expires_at = as_aware(audit.created_at) + timedelta(days=settings.user_retention_days)
+        db.commit()
+        db.refresh(audit)
+        logger.info("Auditoría id=%s asociada a la cuenta id=%s", audit.id, user.id)
+    return serialize_for(audit, user)
 
 
 @router.get("/audit/{audit_id}/pdf")
 def download_pdf(audit_id: int, user: Optional[User] = Depends(get_optional_user), db: Session = Depends(get_db),
                  x_audit_token: Optional[str] = Header(default=None, max_length=128)):
-    audit = _get_accessible_audit(audit_id, db, user, x_audit_token)
+    audit = _get_detailed_audit(audit_id, db, user, x_audit_token)
     pdf = generate_audit_pdf(audit.url, audit.risk_percentage, serialize_audit(audit)["findings"],
                              created_at=audit.created_at, final_url=audit.final_url)
     return Response(
@@ -173,7 +223,7 @@ def download_pdf(audit_id: int, user: Optional[User] = Depends(get_optional_user
 async def email_report(audit_id: int, body: EmailRequest, request: Request,
                        user: Optional[User] = Depends(get_optional_user), db: Session = Depends(get_db),
                        x_audit_token: Optional[str] = Header(default=None, max_length=128)):
-    audit = _get_accessible_audit(audit_id, db, user, x_audit_token)
+    audit = _get_detailed_audit(audit_id, db, user, x_audit_token)
     rate_limiter.check(f"email:{client_ip(request)}", settings.email_rate_per_hour, 3600)
     to_address = normalize_email(body.email)
     pdf = generate_audit_pdf(audit.url, audit.risk_percentage, serialize_audit(audit)["findings"],
@@ -200,15 +250,11 @@ def delete_audit(audit_id: int, user: Optional[User] = Depends(get_optional_user
 
 @router.get("/history")
 def history(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0, le=10_000),
-            scope: str = Query(default="mine", pattern="^(mine|all)$"),
             user: User = Depends(require_user), db: Session = Depends(get_db)):
-    query = db.query(AuditRecord).filter(AuditRecord.expires_at > datetime.now(timezone.utc))
-    if scope == "all":
-        if user.role != "admin":
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo un administrador puede ver todas las auditorías.")
-        logger.info("Consulta administrativa del historial completo por usuario id=%s", user.id)
-    else:
-        query = query.filter(AuditRecord.user_id == user.id)
+    """Historial privado: solo los análisis de la propia cuenta (los administradores usan /admin)."""
+    query = (db.query(AuditRecord)
+             .filter(AuditRecord.expires_at > datetime.now(timezone.utc))
+             .filter(AuditRecord.user_id == user.id))
     total = query.count()
     items = query.order_by(AuditRecord.created_at.desc()).offset(offset).limit(limit).all()
     return {"total": total, "items": [serialize_audit(a, full=False) for a in items]}

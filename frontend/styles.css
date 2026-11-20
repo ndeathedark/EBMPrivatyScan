@@ -178,6 +178,37 @@ dialog::backdrop { background: rgba(10, 20, 22, .5); }
   .history td.actions-cell { grid-column: 1 / -1; }
 }
 
+/* ---------- Detalle bloqueado para invitados ---------- */
+.locked { margin: 20px 0; padding: 18px 20px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--tint-ok); }
+.locked h3 { font-family: var(--serif); font-size: 1.2rem; margin: 0 0 6px; }
+.locked .actions { margin: 12px 0 8px; }
+
+/* ---------- Administración ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 18px; }
+.stats div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.stats dt { color: var(--muted); font-size: .85rem; }
+.stats dd { margin: 2px 0 0; font-family: var(--serif); font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+.admin-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.admin-tools input[type="search"] { flex: 1 1 240px; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; padding: 2px; margin: 0; background: var(--surface); }
+.segmented label { display: inline-flex; align-items: center; cursor: pointer; }
+.segmented input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.segmented span { padding: 7px 12px; border-radius: 4px; font-size: .9rem; color: var(--muted); }
+.segmented input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.segmented input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 1px; }
+.owner-guest { color: var(--muted); font-style: italic; }
+.owner-link { padding: 0; font-weight: 500; text-align: left; overflow-wrap: anywhere; }
+.filter-chip { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; padding: 8px 12px; border-radius: 6px; background: var(--tint-ok); }
+.filter-chip .btn-link { padding: 0; }
+.email-cell { font-weight: 600; }
+/* En las tablas de administración solo se parte la dirección; el resto se mantiene en una
+   línea y, si no cabe, la tabla se desplaza horizontalmente dentro de .table-wrap. */
+/* La administración tiene tablas anchas: usa más ancho que el resto de la página. */
+main.wrap:has(#viewAdmin:not([hidden])) { max-width: 1140px; }
+.admin-table th, .admin-table td { white-space: nowrap; }
+.admin-table td.url-cell { white-space: normal; min-width: 180px; }
+.role-admin { font-weight: 700; color: var(--accent); }
+
 /* Debe ir al final: con la misma especificidad que una clase, gana por orden y
    oculta cualquier elemento con el atributo hidden sin necesidad de !important. */
 [hidden] { display: none; }

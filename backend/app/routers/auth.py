@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models.audit import User
+from .audits import as_aware
 from ..security import (
     _DUMMY_HASH,
     clear_session,
@@ -42,7 +43,7 @@ class DeleteAccountRequest(BaseModel):
 
 
 def user_public(user: User) -> dict:
-    return {"id": user.id, "email": user.email, "role": user.role, "created_at": user.created_at}
+    return {"id": user.id, "email": user.email, "role": user.role, "created_at": as_aware(user.created_at)}
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)

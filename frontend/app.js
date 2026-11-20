@@ -57,13 +57,17 @@ function riskColor(risk) {
 }
 
 // ------------------------------------------------------------------ Vistas
+const VIEWS = { evaluator: 'viewEvaluator', history: 'viewHistory', admin: 'viewAdmin' };
+
+function isAdmin() { return Boolean(state.user && state.user.role === 'admin'); }
+
 function setView(view) {
-  show($('viewEvaluator'), view === 'evaluator');
-  show($('viewHistory'), view === 'history');
+  for (const [name, id] of Object.entries(VIEWS)) show($(id), name === view);
   document.querySelectorAll('.nav-link').forEach((b) => {
     if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   if (view === 'history') void loadHistory();
+  if (view === 'admin') void loadAdmin();
 }
 
 function renderSession() {
@@ -72,9 +76,10 @@ function renderSession() {
   show($('btnLogout'), logged);
   show($('navHistory'), logged);
   show($('whoami'), logged);
-  show($('scopeWrap'), logged && state.user.role === 'admin');
+  show($('navAdmin'), isAdmin());
   $('whoami').textContent = logged ? state.user.email : '';
-  if (!logged && !$('viewHistory').hidden) setView('evaluator');
+  const onPrivateView = !$('viewHistory').hidden || !$('viewAdmin').hidden;
+  if (onPrivateView && (!logged || (!$('viewAdmin').hidden && !isAdmin()))) setView('evaluator');
 }
 
 async function refreshSession() {
@@ -187,10 +192,15 @@ function resultTitle(data) {
 
 function renderResult(data) {
   state.audit = data;
+  const locked = Boolean(data.details_locked);
   $('resTitle').textContent = resultTitle(data);
-  $('resMeta').textContent = `Analizado el ${formatDate(data.created_at)}. Disponible hasta el ${formatDate(data.expires_at)}.`;
+  $('resMeta').textContent = `Analizado el ${formatDate(data.created_at)}; disponible hasta el ${formatDate(data.expires_at)}`;
   renderGauge(Number(data.risk_percentage) || 0);
-  show($('guestNotice'), !data.owned);
+  // Sin cuenta solo se muestra el porcentaje; el servidor tampoco envía los hallazgos.
+  show($('lockedPanel'), locked);
+  show($('findingsList'), !locked);
+  show($('btnPdf'), !locked);
+  show($('btnShowEmail'), !locked);
   $('findingsList').replaceChildren(...(data.findings || []).map(buildFinding));
 
   show($('emailForm'), false);
@@ -273,9 +283,8 @@ function historyMessageRow(text, isError = false) {
 async function loadHistory() {
   const body = $('historyBody');
   body.replaceChildren(historyMessageRow('Cargando…'));
-  const scope = $('scopeAll').checked ? 'all' : 'mine';
   try {
-    const data = await api(`/history?limit=50&scope=${scope}`);
+    const data = await api('/history?limit=50');
     body.replaceChildren();
     if (!data.items.length) { body.append(historyMessageRow('Aún no tienes análisis. Ve a “Analizar” para crear el primero.')); return; }
     for (const item of data.items) {
@@ -322,6 +331,185 @@ async function onDeleteAccount(event) {
   } catch (err) { alert('No se pudo eliminar la cuenta: ' + err.message); }
 }
 
+// ------------------------------------------------------------------ Administración
+const ADMIN_COLUMNS = {
+  audits: ['Dirección analizada', 'Riesgo', 'Fecha', 'Usuario', 'Acciones'],
+  users: ['Correo', 'Rol', 'Registrado', 'Análisis', 'Última actividad', 'Acciones'],
+  sites: ['Sitio', 'Análisis', 'Último riesgo', 'Último análisis', 'Acciones'],
+};
+const EMPTY_MESSAGES = {
+  audits: 'No hay análisis que coincidan.',
+  users: 'No hay usuarios que coincidan.',
+  sites: 'No hay páginas analizadas que coincidan.',
+};
+const adminState = { owner: null };   // { id, email } cuando se filtra el historial por usuario
+
+function adminMode() {
+  return document.querySelector('input[name="adminMode"]:checked')?.value || 'audits';
+}
+
+function setAdminMode(mode) {
+  const radio = document.querySelector(`input[name="adminMode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+}
+
+function cell(text, className = '') {
+  const td = document.createElement('td');
+  if (className) td.className = className;
+  td.textContent = text;
+  return td;
+}
+
+function riskCell(risk) {
+  const td = document.createElement('td');
+  const pill = document.createElement('span');
+  pill.className = 'risk-pill';
+  pill.style.color = riskColor(risk);
+  pill.textContent = `${risk}%`;
+  td.append(pill);
+  return td;
+}
+
+function rowButton(label, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn';
+  btn.textContent = label;
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function actionsCell(...buttons) {
+  const td = document.createElement('td');
+  td.className = 'actions-cell';
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+  actions.append(...buttons);
+  td.append(actions);
+  return td;
+}
+
+function auditActions(auditId) {
+  return actionsCell(
+    rowButton('Ver detalle', () => openAuditDetail(auditId)),
+    rowButton('PDF', () => downloadPdf(auditId).catch((err) => alert(err.message))),
+  );
+}
+
+function showUserHistory(owner) {
+  adminState.owner = owner;
+  setAdminMode('audits');
+  void loadAdmin();
+}
+
+function ownerCell(item) {
+  if (!item.owner_id) return cell(item.owner, 'owner-guest');
+  const td = document.createElement('td');
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'btn btn-link owner-link';
+  link.textContent = item.owner;
+  link.title = 'Ver todo el historial de este usuario';
+  link.addEventListener('click', () => showUserHistory({ id: item.owner_id, email: item.owner }));
+  td.append(link);
+  return td;
+}
+
+function auditRow(item) {
+  const tr = document.createElement('tr');
+  tr.append(cell(item.url, 'url-cell'), riskCell(item.risk_percentage), cell(formatDate(item.created_at)),
+            ownerCell(item), auditActions(item.id));
+  return tr;
+}
+
+function userRow(item) {
+  const tr = document.createElement('tr');
+  const role = cell(item.role === 'admin' ? 'Administrador' : 'Usuario', item.role === 'admin' ? 'role-admin' : '');
+  const last = item.last_activity ? formatDate(item.last_activity) : 'Sin análisis';
+  tr.append(cell(item.email, 'email-cell'), role, cell(formatDate(item.created_at)), cell(String(item.audits)),
+            cell(last), actionsCell(rowButton('Ver historial', () => showUserHistory({ id: item.id, email: item.email }))));
+  return tr;
+}
+
+function siteRow(item) {
+  const tr = document.createElement('tr');
+  tr.append(cell(item.site, 'url-cell'), cell(String(item.analyses)), riskCell(item.last_risk),
+            cell(formatDate(item.last_analysed_at)), auditActions(item.last_audit_id));
+  return tr;
+}
+
+const ADMIN_ROWS = { audits: auditRow, users: userRow, sites: siteRow };
+
+function adminPath(mode) {
+  const q = encodeURIComponent($('adminQuery').value.trim());
+  if (mode === 'users') return `/admin/users?q=${q}`;
+  if (mode === 'sites') return `/admin/sites?q=${q}`;
+  const owner = adminState.owner ? `&owner=${encodeURIComponent(adminState.owner.id)}` : '';
+  return `/admin/audits?limit=500&q=${q}${owner}`;
+}
+
+function adminMessageRow(text, columns, isError = false) {
+  const row = historyMessageRow(text, isError);
+  row.firstChild.colSpan = columns;
+  return row;
+}
+
+async function loadAdminStats() {
+  try {
+    const stats = await api('/admin/stats');
+    $('statSites').textContent = String(stats.sites);
+    $('statAudits').textContent = String(stats.audits);
+    $('statGuests').textContent = String(stats.guest_audits);
+    $('statUsers').textContent = String(stats.users);
+  } catch (err) {
+    console.info('No se pudieron cargar las estadísticas:', err.message);
+  }
+}
+
+function renderAdminHead(columns) {
+  const head = document.createElement('tr');
+  for (const title of columns) {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = title;
+    head.append(th);
+  }
+  $('adminHead').replaceChildren(head);
+}
+
+async function loadAdmin() {
+  const mode = adminMode();
+  if (mode !== 'audits') adminState.owner = null;
+  const columns = ADMIN_COLUMNS[mode];
+  renderAdminHead(columns);
+  show($('adminFilter'), Boolean(adminState.owner));
+  $('adminFilterName').textContent = adminState.owner ? adminState.owner.email : '';
+  const body = $('adminBody');
+  body.replaceChildren(adminMessageRow('Cargando…', columns.length));
+  $('adminFoot').textContent = '';
+  void loadAdminStats();
+
+  try {
+    const data = await api(adminPath(mode));
+    if (data.items.length) body.replaceChildren(...data.items.map(ADMIN_ROWS[mode]));
+    else body.replaceChildren(adminMessageRow(EMPTY_MESSAGES[mode], columns.length));
+    const partial = data.items.length < data.total;
+    $('adminFoot').textContent = partial ? `Mostrando ${data.items.length} de ${data.total}.` : `${data.total} en total.`;
+  } catch (err) {
+    body.replaceChildren(adminMessageRow('No se pudo cargar la administración: ' + err.message, columns.length, true));
+  }
+}
+
+async function openAuditDetail(auditId) {
+  try {
+    const detail = await api(`/audit/${encodeURIComponent(auditId)}`);
+    setView('evaluator');
+    renderResult(detail);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 // ------------------------------------------------------------------ Acceso
 function setAuthMode(mode) {
   state.authMode = mode;
@@ -335,9 +523,9 @@ function setAuthMode(mode) {
   message($('authError'), '');
 }
 
-function openAuth() {
-  setAuthMode('login');
+function openAuth(mode = 'login') {
   $('authForm').reset();
+  setAuthMode(mode);
   $('authDialog').showModal();
   $('authEmail').focus();
 }
@@ -356,6 +544,7 @@ async function onAuthSubmit(event) {
     state.user = await api(path, { method: 'POST', body });
     $('authDialog').close();
     renderSession();
+    await unlockCurrentAudit();
   } catch (err) {
     message($('authError'), err.message, 'error');
   } finally {
@@ -364,10 +553,33 @@ async function onAuthSubmit(event) {
   }
 }
 
+// Tras registrarse o iniciar sesión, el análisis hecho como invitado pasa a la cuenta
+// y se muestran sus detalles sin tener que repetirlo.
+async function unlockCurrentAudit() {
+  const audit = state.audit;
+  if (!audit || !audit.details_locked) return;
+  const token = state.tokens.get(audit.id);
+  try {
+    // Un administrador ve el detalle sin apropiarse del análisis del invitado.
+    const claim = Boolean(token) && !isAdmin();
+    const data = claim
+      ? await api(`/audit/${audit.id}/claim`, { method: 'POST', token })
+      : await api(`/audit/${audit.id}`, { token });
+    renderResult(data);
+  } catch (err) {
+    message($('formError'), 'No se pudo abrir el detalle del análisis: ' + err.message, 'error');
+  }
+}
+
 async function onLogout() {
   try { await api('/auth/logout', { method: 'POST' }); } catch (_) { /* se limpia igual */ }
   state.user = null;
   renderSession();
+  if (state.audit && !state.audit.details_locked) {
+    // Al cerrar sesión no deben quedar a la vista detalles de la cuenta.
+    show($('results'), false);
+    state.audit = null;
+  }
 }
 
 // ------------------------------------------------------------------ Inicio
@@ -384,9 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btnDeleteAudit').addEventListener('click', onDeleteCurrent);
   document.querySelectorAll('.nav-link').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
   $('btnRefresh').addEventListener('click', loadHistory);
-  $('scopeAll').addEventListener('change', loadHistory);
+  $('btnAdminRefresh').addEventListener('click', loadAdmin);
+  $('btnClearFilter').addEventListener('click', () => { adminState.owner = null; void loadAdmin(); });
+  $('adminSearch').addEventListener('submit', (event) => { event.preventDefault(); void loadAdmin(); });
+  document.querySelectorAll('input[name="adminMode"]').forEach((r) => r.addEventListener('change', loadAdmin));
+  $('btnUnlockRegister').addEventListener('click', () => openAuth('register'));
+  $('btnUnlockLogin').addEventListener('click', () => openAuth('login'));
   $('deleteAccountForm').addEventListener('submit', onDeleteAccount);
-  $('btnLogin').addEventListener('click', openAuth);
+  $('btnLogin').addEventListener('click', () => openAuth('login'));
   $('btnLogout').addEventListener('click', onLogout);
   $('authSwitch').addEventListener('click', () => setAuthMode(state.authMode === 'login' ? 'register' : 'login'));
   $('authCancel').addEventListener('click', () => $('authDialog').close());
