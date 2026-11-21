@@ -80,6 +80,7 @@ def serialize_audit(audit: AuditRecord, full: bool = True) -> dict:
     return data
 
 
+NOT_FOUND_MESSAGE = "Auditoría no encontrada."
 LOCKED_MESSAGE = "Inicia sesión o crea una cuenta gratuita para ver el detalle y descargar el informe."
 
 
@@ -103,7 +104,7 @@ def _get_accessible_audit(audit_id: int, db: Session, user: Optional[User], toke
     now = datetime.now(timezone.utc)
     # Respuesta idéntica para "no existe" y "sin permiso": no revela qué IDs existen.
     if audit is None or as_aware(audit.expires_at) < now or not can_access_audit(audit, user, token):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
     if user is not None and user.role == "admin" and audit.user_id != user.id:
         logger.info("Acceso administrativo a auditoría id=%s por usuario id=%s", audit.id, user.id)
     return audit
@@ -192,14 +193,15 @@ def claim_audit(audit_id: int, user: User = Depends(require_user), db: Session =
                 x_audit_token: Optional[str] = Header(default=None, max_length=128)):
     """Asocia a la cuenta un análisis hecho como invitado (requiere el token del análisis)."""
     if not x_audit_token:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
     audit = _get_accessible_audit(audit_id, db, None, x_audit_token)
     if audit.user_id is not None and audit.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Auditoría no encontrada.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND_MESSAGE)
     if audit.user_id is None:
         audit.user_id = user.id
         # Pasa a la conservación de las cuentas, contada desde la fecha del análisis.
-        audit.expires_at = as_aware(audit.created_at) + timedelta(days=settings.user_retention_days)
+        created_at = as_aware(audit.created_at) or datetime.now(timezone.utc)
+        audit.expires_at = created_at + timedelta(days=settings.user_retention_days)
         db.commit()
         db.refresh(audit)
         logger.info("Auditoría id=%s asociada a la cuenta id=%s", audit.id, user.id)

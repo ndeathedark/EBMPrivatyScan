@@ -59,7 +59,7 @@ function riskColor(risk) {
 // ------------------------------------------------------------------ Vistas
 const VIEWS = { evaluator: 'viewEvaluator', history: 'viewHistory', admin: 'viewAdmin' };
 
-function isAdmin() { return Boolean(state.user && state.user.role === 'admin'); }
+function isAdmin() { return state.user?.role === 'admin'; }
 
 function setView(view) {
   for (const [name, id] of Object.entries(VIEWS)) show($(id), name === view);
@@ -302,7 +302,7 @@ async function loadHistory() {
         catch (err) { alert(err.message); }
       });
       const pdfBtn = document.createElement('button'); pdfBtn.type = 'button'; pdfBtn.className = 'btn'; pdfBtn.textContent = 'PDF';
-      pdfBtn.addEventListener('click', () => downloadPdf(item.id).catch((err) => alert(err.message)));
+      pdfBtn.addEventListener('click', () => { downloadPdf(item.id).catch((err) => alert(err.message)); });
       const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'btn btn-danger-quiet'; delBtn.textContent = 'Eliminar';
       delBtn.addEventListener('click', async () => {
         try { if (await deleteAudit(item.id)) await loadHistory(); } catch (err) { alert(err.message); }
@@ -391,8 +391,8 @@ function actionsCell(...buttons) {
 
 function auditActions(auditId) {
   return actionsCell(
-    rowButton('Ver detalle', () => openAuditDetail(auditId)),
-    rowButton('PDF', () => downloadPdf(auditId).catch((err) => alert(err.message))),
+    rowButton('Ver detalle', () => { void openAuditDetail(auditId); }),
+    rowButton('PDF', () => { downloadPdf(auditId).catch((err) => alert(err.message)); }),
   );
 }
 
@@ -557,7 +557,7 @@ async function onAuthSubmit(event) {
 // y se muestran sus detalles sin tener que repetirlo.
 async function unlockCurrentAudit() {
   const audit = state.audit;
-  if (!audit || !audit.details_locked) return;
+  if (!audit?.details_locked) return;
   const token = state.tokens.get(audit.id);
   try {
     // Un administrador ve el detalle sin apropiarse del análisis del invitado.
@@ -575,7 +575,7 @@ async function onLogout() {
   try { await api('/auth/logout', { method: 'POST' }); } catch (_) { /* se limpia igual */ }
   state.user = null;
   renderSession();
-  if (state.audit && !state.audit.details_locked) {
+  if (state.audit?.details_locked === false) {
     // Al cerrar sesión no deben quedar a la vista detalles de la cuenta.
     show($('results'), false);
     state.audit = null;
@@ -584,29 +584,29 @@ async function onLogout() {
 
 // ------------------------------------------------------------------ Inicio
 document.addEventListener('DOMContentLoaded', () => {
-  $('auditForm').addEventListener('submit', runAudit);
-  $('btnPdf').addEventListener('click', onPdf);
+  $('auditForm').addEventListener('submit', (event) => { void runAudit(event); });
+  $('btnPdf').addEventListener('click', (event) => { void onPdf(event); });
   $('btnShowEmail').addEventListener('click', () => {
     const open = $('emailForm').hidden;
     show($('emailForm'), open);
     $('btnShowEmail').setAttribute('aria-expanded', String(open));
     if (open) $('emailInput').focus();
   });
-  $('emailForm').addEventListener('submit', onSendEmail);
-  $('btnDeleteAudit').addEventListener('click', onDeleteCurrent);
+  $('emailForm').addEventListener('submit', (event) => { void onSendEmail(event); });
+  $('btnDeleteAudit').addEventListener('click', (event) => { void onDeleteCurrent(event); });
   document.querySelectorAll('.nav-link').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
-  $('btnRefresh').addEventListener('click', loadHistory);
-  $('btnAdminRefresh').addEventListener('click', loadAdmin);
+  $('btnRefresh').addEventListener('click', (event) => { void loadHistory(event); });
+  $('btnAdminRefresh').addEventListener('click', (event) => { void loadAdmin(event); });
   $('btnClearFilter').addEventListener('click', () => { adminState.owner = null; void loadAdmin(); });
   $('adminSearch').addEventListener('submit', (event) => { event.preventDefault(); void loadAdmin(); });
-  document.querySelectorAll('input[name="adminMode"]').forEach((r) => r.addEventListener('change', loadAdmin));
+  document.querySelectorAll('input[name="adminMode"]').forEach((r) => r.addEventListener('change', () => { void loadAdmin(); }));
   $('btnUnlockRegister').addEventListener('click', () => openAuth('register'));
   $('btnUnlockLogin').addEventListener('click', () => openAuth('login'));
-  $('deleteAccountForm').addEventListener('submit', onDeleteAccount);
+  $('deleteAccountForm').addEventListener('submit', (event) => { void onDeleteAccount(event); });
   $('btnLogin').addEventListener('click', () => openAuth('login'));
-  $('btnLogout').addEventListener('click', onLogout);
+  $('btnLogout').addEventListener('click', (event) => { void onLogout(event); });
   $('authSwitch').addEventListener('click', () => setAuthMode(state.authMode === 'login' ? 'register' : 'login'));
   $('authCancel').addEventListener('click', () => $('authDialog').close());
-  $('authForm').addEventListener('submit', onAuthSubmit);
+  $('authForm').addEventListener('submit', (event) => { void onAuthSubmit(event); });
   void refreshSession();
 });

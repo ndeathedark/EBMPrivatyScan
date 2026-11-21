@@ -6,8 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light dark">
   <title>EBMPrivatyScan: diagnóstico de privacidad web</title>
-  <link rel="stylesheet" href="styles.css?v=2.2">
-  <script src="app.js?v=2.2" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.4">
+  <script src="app.js?v=2.4" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Saltar al contenido</a>
@@ -196,7 +196,9 @@
 
       <div class="table-wrap">
         <table class="history admin-table">
-          <thead id="adminHead"></thead>
+          <thead id="adminHead">
+            <tr><th scope="col">Dirección analizada</th><th scope="col">Riesgo</th><th scope="col">Fecha</th><th scope="col">Usuario</th><th scope="col">Acciones</th></tr>
+          </thead>
           <tbody id="adminBody"></tbody>
         </table>
       </div>

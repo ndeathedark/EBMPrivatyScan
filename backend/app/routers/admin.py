@@ -89,7 +89,8 @@ def all_audits(q: str = Query(default="", max_length=200),
     total = query.count()
     items = (query.options(joinedload(AuditRecord.owner))
              .order_by(AuditRecord.created_at.desc()).offset(offset).limit(limit).all())
-    logger.info("Administrador id=%s consultó el historial completo (q=%r, owner=%r)", admin.id, q[:50], owner)
+    # No se registra el texto buscado: es un dato ingresado por el usuario (evita inyección en logs).
+    logger.info("Administrador id=%s consultó el historial completo (%d resultados)", admin.id, total)
     return {"total": total, "items": [_with_owner(a) for a in items]}
 
 
