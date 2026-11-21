@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .database import SessionLocal, init_db
-from .routers import audits, auth
+from .routers import admin, audits, auth
 from .security import CSRF_HEADER, CSRF_VALUE
 from .services.retention import purge_expired
 
@@ -84,7 +84,7 @@ async def security_middleware(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("Cache-Control", "no-store")
-    if not request.url.path.startswith("/api/docs"):
+    if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/docs"):
         response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
     return response
 
@@ -115,3 +115,4 @@ def health():
 
 app.include_router(auth.router)
 app.include_router(audits.router)
+app.include_router(admin.router)

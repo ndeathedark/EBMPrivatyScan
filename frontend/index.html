@@ -6,8 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <meta name="color-scheme" content="light dark">
   <title>EBMPrivatyScan: diagnóstico de privacidad web</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.4">
+  <script src="app.js?v=2.4" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Saltar al contenido</a>
@@ -18,6 +18,7 @@
       <nav class="nav" aria-label="Secciones">
         <button type="button" class="nav-link" data-view="evaluator" aria-current="page">Analizar</button>
         <button type="button" class="nav-link" data-view="history" id="navHistory" hidden>Mi historial</button>
+        <button type="button" class="nav-link" data-view="admin" id="navAdmin" hidden>Administración</button>
         <span class="who" id="whoami" hidden></span>
         <button type="button" class="btn btn-quiet" id="btnLogin">Ingresar</button>
         <button type="button" class="btn btn-quiet" id="btnLogout" hidden>Cerrar sesión</button>
@@ -76,10 +77,20 @@
           </div>
         </header>
 
-        <p class="notice" id="guestNotice" hidden>
-          Este análisis no está asociado a una cuenta: se eliminará automáticamente en 24 horas y solo puedes
-          abrirlo desde esta pestaña. Descarga el PDF si quieres conservarlo.
-        </p>
+        <section class="locked" id="lockedPanel" hidden aria-labelledby="lockedTitle">
+          <h3 id="lockedTitle">Crea una cuenta para ver el detalle</h3>
+          <p>
+            El porcentaje muestra el nivel general de riesgo del sitio. Con una cuenta gratuita verás qué se
+            encontró en cada punto revisado, la evidencia y podrás descargar o enviar el informe PDF.
+          </p>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="btnUnlockRegister">Crear cuenta y ver el detalle</button>
+            <button type="button" class="btn" id="btnUnlockLogin">Ya tengo cuenta</button>
+          </div>
+          <p class="help">
+            Este análisis se conserva 24 horas sin cuenta. Al registrarte queda guardado en tu historial.
+          </p>
+        </section>
 
         <ul id="findingsList" class="findings"></ul>
 
@@ -126,9 +137,6 @@
           <p class="help" id="histHelp">Tus análisis se conservan por 180 días y luego se eliminan.</p>
         </div>
         <div class="section-tools">
-          <label class="check check-inline" id="scopeWrap" hidden>
-            <input type="checkbox" id="scopeAll"> <span>Ver todas (administración)</span>
-          </label>
           <button type="button" class="btn" id="btnRefresh">Actualizar</button>
         </div>
       </div>
@@ -150,6 +158,51 @@
           </div>
         </form>
       </details>
+    </section>
+
+    <!-- ===================== Administración ===================== -->
+    <section id="viewAdmin" hidden aria-labelledby="adminTitle">
+      <div class="section-head">
+        <div>
+          <h1 id="adminTitle">Administración</h1>
+          <p class="help">Usuarios registrados, páginas analizadas e historial completo de la plataforma. Las contraseñas nunca se muestran.</p>
+        </div>
+        <button type="button" class="btn" id="btnAdminRefresh">Actualizar</button>
+      </div>
+
+      <dl class="stats" id="adminStats">
+        <div><dt>Sitios analizados</dt><dd id="statSites">–</dd></div>
+        <div><dt>Análisis</dt><dd id="statAudits">–</dd></div>
+        <div><dt>De invitados</dt><dd id="statGuests">–</dd></div>
+        <div><dt>Cuentas</dt><dd id="statUsers">–</dd></div>
+      </dl>
+
+      <form id="adminSearch" class="admin-tools" novalidate>
+        <label for="adminQuery" class="sr-only">Buscar por dirección o correo</label>
+        <input type="search" id="adminQuery" maxlength="200" placeholder="Buscar por dirección o correo">
+        <fieldset class="segmented">
+          <legend class="sr-only">Vista</legend>
+          <label><input type="radio" name="adminMode" value="audits" checked> <span>Historial completo</span></label>
+          <label><input type="radio" name="adminMode" value="users"> <span>Usuarios</span></label>
+          <label><input type="radio" name="adminMode" value="sites"> <span>Por sitio</span></label>
+        </fieldset>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+      </form>
+
+      <p class="filter-chip" id="adminFilter" hidden>
+        <span>Historial de <strong id="adminFilterName"></strong></span>
+        <button type="button" class="btn btn-link" id="btnClearFilter">Ver el historial de todos</button>
+      </p>
+
+      <div class="table-wrap">
+        <table class="history admin-table">
+          <thead id="adminHead">
+            <tr><th scope="col">Dirección analizada</th><th scope="col">Riesgo</th><th scope="col">Fecha</th><th scope="col">Usuario</th><th scope="col">Acciones</th></tr>
+          </thead>
+          <tbody id="adminBody"></tbody>
+        </table>
+      </div>
+      <p class="help" id="adminFoot"></p>
     </section>
   </main>
 
