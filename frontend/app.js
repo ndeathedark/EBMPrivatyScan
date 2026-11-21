@@ -585,7 +585,7 @@ async function onLogout() {
 // ------------------------------------------------------------------ Inicio
 document.addEventListener('DOMContentLoaded', () => {
   $('auditForm').addEventListener('submit', (event) => { void runAudit(event); });
-  $('btnPdf').addEventListener('click', (event) => { void onPdf(event); });
+  $('btnPdf').addEventListener('click', () => { void onPdf(); });
   $('btnShowEmail').addEventListener('click', () => {
     const open = $('emailForm').hidden;
     show($('emailForm'), open);
@@ -593,10 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (open) $('emailInput').focus();
   });
   $('emailForm').addEventListener('submit', (event) => { void onSendEmail(event); });
-  $('btnDeleteAudit').addEventListener('click', (event) => { void onDeleteCurrent(event); });
+  $('btnDeleteAudit').addEventListener('click', () => { void onDeleteCurrent(); });
   document.querySelectorAll('.nav-link').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
-  $('btnRefresh').addEventListener('click', (event) => { void loadHistory(event); });
-  $('btnAdminRefresh').addEventListener('click', (event) => { void loadAdmin(event); });
+  $('btnRefresh').addEventListener('click', () => { void loadHistory(); });
+  $('btnAdminRefresh').addEventListener('click', () => { void loadAdmin(); });
   $('btnClearFilter').addEventListener('click', () => { adminState.owner = null; void loadAdmin(); });
   $('adminSearch').addEventListener('submit', (event) => { event.preventDefault(); void loadAdmin(); });
   document.querySelectorAll('input[name="adminMode"]').forEach((r) => r.addEventListener('change', () => { void loadAdmin(); }));
@@ -604,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btnUnlockLogin').addEventListener('click', () => openAuth('login'));
   $('deleteAccountForm').addEventListener('submit', (event) => { void onDeleteAccount(event); });
   $('btnLogin').addEventListener('click', () => openAuth('login'));
-  $('btnLogout').addEventListener('click', (event) => { void onLogout(event); });
+  $('btnLogout').addEventListener('click', () => { void onLogout(); });
   $('authSwitch').addEventListener('click', () => setAuthMode(state.authMode === 'login' ? 'register' : 'login'));
   $('authCancel').addEventListener('click', () => $('authDialog').close());
   $('authForm').addEventListener('submit', (event) => { void onAuthSubmit(event); });
